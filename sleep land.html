@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B1E3D">
+<title>Sleep Land · 睡眠银行</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+/* ============ 主题变量（日夜双主题，跟随系统自动切换） ============ */
+:root {
+  --bg: #F4FBF7;
+  --card: #FFFFFF;
+  --card-2: #EBF7F0;
+  --accent: #4FBF8B;
+  --accent-strong: #3DA574;
+  --accent-soft: rgba(79, 191, 139, 0.14);
+  --text: #1F3B30;
+  --text-2: rgba(31, 59, 48, 0.65);
+  --text-3: rgba(31, 59, 48, 0.40);
+  --coin: #F0B94A;
+  --coin-hi: #FFE08A;
+  --coin-lo: #D99A2B;
+  --dot-ok: #4FBF8B;
+  --dot-no: rgba(31, 59, 48, 0.15);
+  --line: rgba(31, 59, 48, 0.08);
+  --shadow: rgba(31, 59, 48, 0.10);
+  --jar-glass: rgba(79, 191, 139, 0.10);
+  --jar-outline: #4FBF8B;
+  --star: rgba(31, 59, 48, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0B1E3D;
+    --card: #12284D;
+    --card-2: #16315C;
+    --accent: #F5C542;
+    --accent-strong: #FFD866;
+    --accent-soft: rgba(245, 197, 66, 0.14);
+    --text: #F4E9CC;
+    --text-2: rgba(244, 233, 204, 0.70);
+    --text-3: rgba(244, 233, 204, 0.40);
+    --coin: #F5C542;
+    --coin-hi: #FFE9A3;
+    --coin-lo: #C99A1F;
+    --dot-ok: #F5C542;
+    --dot-no: rgba(244, 233, 204, 0.25);
+    --line: rgba(244, 233, 204, 0.08);
+    --shadow: rgba(0, 0, 0, 0.35);
+    --jar-glass: rgba(245, 197, 66, 0.09);
+    --jar-outline: #F5C542;
+    --star: rgba(244, 233, 204, 0.16);
+  }
+}
+
+/* ============ 基础 ============ */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+#app {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  position: relative;
+  padding-bottom: 76px; /* 给底部导航留空间 */
+}
+
+/* 夜空星星点缀（夜晚更明显） */
+#stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+#stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--star); }
+#app > * { position: relative; z-index: 1; }
+
+/* ============ 视图 ============ */
+.view { display: none; padding: 20px 18px 12px; animation: fade .3s ease; }
+.view.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ============ 品牌区 ============ */
+.brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.brand .logo { display: flex; align-items: center; gap: 8px; }
+.brand .logo .mark { width: 30px; height: 30px; border-radius: 10px; background: var(--accent); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 17px; box-shadow: 0 4px 12px var(--shadow); }
+.brand .logo h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+.brand .tagline { font-size: 13px; color: var(--text-2); min-height: 40px; line-height: 1.45; }
+.theme-hint { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 4px; }
+
+/* ============ 首页：硬币罐 + 余额 ============ */
+.jar-wrap { display: flex; flex-direction: column; align-items: center; margin: 6px 0 0; }
+.balance-label { font-size: 13px; color: var(--text-2); }
+.balance-num { font-size: 44px; font-weight: 800; line-height: 1.1; letter-spacing: -1px; }
+.balance-num small { font-size: 15px; font-weight: 600; color: var(--text-2); margin-left: 2px; }
+.balance-num.negative { color: var(--text-2); }
+.jar-stage { position: relative; width: 312px; height: 336px; margin-top: -10px; }
+.jar-stage svg { width: 100%; height: 100%; display: block; }
+#jar-group { transform-origin: 50% 90%; transition: transform .6s cubic-bezier(.34,1.56,.64,1); }
+#jar-group.tilt { transform: rotate(-6deg); }
+#jar-group.shake { animation: shake .5s ease; }
+@keyframes shake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-4deg)} 75%{transform:rotate(4deg)} }
+.overdraft-badge {
+  position: absolute; top: 8px; right: 12px;
+  background: var(--card); border: 1px solid var(--line); color: var(--text-2);
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; box-shadow: 0 4px 14px var(--shadow);
+}
+.falling-coin { opacity: 0; }
+.falling-coin.drop { animation: coinDrop .7s cubic-bezier(.4,0,.8,.6) forwards; }
+@keyframes coinDrop { 0% { transform: translateY(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(150px); opacity: 0; } }
+
+/* ============ 状态 pill + 文案 ============ */
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; padding: 5px 14px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-strong);
+}
+.status-pill.overdraft { background: var(--dot-no); color: var(--text-2); }
+.status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status-text { text-align: center; font-size: 14px; color: var(--text-2); margin: 8px 0 2px; min-height: 22px; }
+.status-text .time { color: var(--accent-strong); font-weight: 700; }
+
+/* ============ 一键打卡按钮 ============ */
+.btn-deposit {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: 100%; padding: 16px; margin-top: 10px;
+  border: none; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: var(--bg);
+  font-size: 18px; font-weight: 700; letter-spacing: 2px;
+  box-shadow: 0 10px 24px var(--shadow);
+  transition: transform .15s ease, opacity .2s ease;
+  font-family: inherit;
+}
+.btn-deposit:active { transform: scale(.97); }
+.btn-deposit .sub { font-size: 12px; font-weight: 500; letter-spacing: 0; opacity: .85; }
+.btn-deposit:disabled { opacity: .55; cursor: default; }
+.btn-deposit:disabled:active { transform: none; }
+
+/* ============ 本周圆点预览 ============ */
+.week-preview { margin-top: 22px; }
+.week-preview .label { font-size: 12px; color: var(--text-3); margin-bottom: 8px; text-align: center; }
+.week-dots { display: flex; justify-content: space-between; }
+.week-dot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.week-dot .d { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; position: relative; border: 1.5px solid transparent; transition: all .3s; }
+.week-dot .d.deposit { background: var(--dot-ok); color: var(--bg); }
+.week-dot .d.overdraft { background: transparent; border: 1.5px dashed var(--dot-no); color: var(--text-3); }
+.week-dot .d.pending { background: transparent; border: 1.5px solid var(--accent); color: var(--accent-strong); }
+.week-dot .d.future, .week-dot .d.unrecorded { background: var(--dot-no); color: transparent; }
+.week-dot .w { font-size: 11px; color: var(--text-3); }
+
+/* 透支提示条 */
+.banner {
+  margin-top: 14px; padding: 11px 14px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--line);
+  font-size: 13px; color: var(--text-2); display: flex; gap: 8px; align-items: flex-start;
+  box-shadow: 0 4px 14px var(--shadow);
+}
+.banner b { color: var(--text); }
+
+/* ============ 卡片通用 ============ */
+.card { background: var(--card); border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 6px 20px var(--shadow); padding: 16px; }
+
+/* ============ 日历 ============ */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-head .title { font-size: 17px; font-weight: 700; }
+.cal-nav { display: flex; gap: 6px; }
+.cal-nav button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 16px; cursor: pointer; font-family: inherit; }
+.cal-nav button:active { background: var(--accent-soft); }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; color: var(--text-3); margin-bottom: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px 0; }
+.cal-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.cal-cell .inner {
+  width: 92%; height: 92%; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+  position: relative; cursor: pointer; transition: all .15s;
+  border: 1.5px solid transparent; color: var(--text);
+}
+.cal-cell .inner:hover { background: var(--accent-soft); }
+/* 存款：实心主题色圆 + 白字 + 右下角对勾 */
+.cal-cell .inner.deposit { background: var(--accent); color: var(--bg); font-weight: 700; border-color: transparent; box-shadow: 0 3px 8px var(--shadow); }
+.cal-cell .inner.deposit::after { content: "✓"; position: absolute; right: 2px; bottom: 1px; font-size: 8px; font-weight: 900; }
+/* 透支：虚线描边 + 减号角标 */
+.cal-cell .inner.overdraft { border-color: var(--text-3); border-style: dashed; color: var(--text-3); }
+.cal-cell .inner.overdraft::after { content: "−"; position: absolute; right: 2px; bottom: -2px; font-size: 11px; font-weight: 700; }
+/* 待存款（今天尚未存）：主题色描边 */
+.cal-cell .inner.pending { border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+/* 未记录 / 未来：极淡 */
+.cal-cell .inner.unrecorded, .cal-cell .inner.future { color: var(--text-3); }
+.cal-cell .inner.outmonth { color: var(--text-3); opacity: .4; }
+.cal-cell .inner.today { box-shadow: inset 0 0 0 2px var(--accent-strong); }
+.cal-cell .inner.selected { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
+.cal-detail { margin-top: 14px; text-align: center; font-size: 13px; color: var(--text-2); min-height: 20px; }
+.cal-legend { display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--text-3); }
+.cal-legend span { display: flex; align-items: center; gap: 5px; }
+.cal-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.cal-legend i.ok { background: var(--dot-ok); }
+.cal-legend i.od { border: 1.5px dashed var(--text-3); box-sizing: border-box; }
+.cal-legend i.no { background: var(--dot-no); }
+
+/* ============ 设置 ============ */
+.section-title { font-size: 12px; color: var(--text-3); margin: 4px 2px 8px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; }
+.set-row .left .t { font-size: 15px; font-weight: 600; }
+.set-row .left .s { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.set-row input[type="time"] {
+  font-size: 17px; font-weight: 700; color: var(--accent-strong);
+  border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px;
+  background: var(--card-2); font-family: inherit; outline: none;
+}
+.switch { position: relative; width: 50px; height: 30px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; inset: 0; background: var(--dot-no); border-radius: 999px; transition: .3s; cursor: pointer; }
+.switch .slider::before { content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .3s; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+.switch input:checked + .slider { background: var(--accent); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+.link-row { padding: 15px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.link-row .arrow { color: var(--text-3); }
+.link-row:active { background: var(--accent-soft); }
+
+/* ============ 底部导航 ============ */
+.tabbar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  display: flex; background: var(--card); border-top: 1px solid var(--line);
+  padding: 6px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+}
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 11px; font-family: inherit; padding: 4px 0; transition: color .2s; }
+.tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active { color: var(--accent-strong); }
+.tab .dotmark { display: none; }
+
+/* ============ 新手引导 ============ */
+.onboarding { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.onboarding.hidden { display: none; }
+.ob-top { display: flex; justify-content: flex-end; padding: 16px 20px 0; }
+.ob-skip { border: none; background: none; color: var(--text-3); font-size: 14px; cursor: pointer; font-family: inherit; }
+.ob-slides-wrap { flex: 1; overflow: hidden; }
+.ob-slides { display: flex; height: 100%; transition: transform .4s cubic-bezier(.22,.61,.36,1); }
+.ob-slide { flex: 0 0 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 32px 60px; text-align: center; }
+.ob-slide .emoji { font-size: 72px; line-height: 1; margin-bottom: 24px; }
+.ob-slide h2 { font-size: 20px; margin: 0 0 12px; }
+.ob-slide p { font-size: 14px; color: var(--text-2); margin: 0 0 10px; max-width: 300px; }
+.ob-slide .rule { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; width: 100%; max-width: 280px; }
+.ob-slide .rule .r { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 14px; text-align: left; }
+.ob-slide .rule .r .ic { font-size: 20px; flex: none; }
+.ob-slide .rule .r b { color: var(--accent-strong); }
+.ob-time-box { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 16px 0 4px; }
+.ob-time-box label { font-size: 13px; color: var(--text-2); }
+.ob-time-box input { font-size: 34px; font-weight: 800; color: var(--accent-strong); border: 1px solid var(--line); border-radius: 16px; padding: 10px 20px; background: var(--card); text-align: center; font-family: inherit; outline: none; }
+.ob-remind { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); margin-top: 14px; }
+.ob-bottom { padding: 0 32px calc(30px + env(safe-area-inset-bottom, 0px)); }
+.ob-btn { width: 100%; padding: 16px; border: none; border-radius: 999px; background: var(--accent); color: var(--bg); font-size: 17px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 10px 24px var(--shadow); }
+.ob-btn:active { transform: scale(.98); }
+.ob-dots { display: flex; justify-content: center; gap: 7px; margin-bottom: 20px; }
+.ob-dots i { width: 7px; height: 7px; border-radius: 999px; background: var(--dot-no); transition: all .3s; }
+.ob-dots i.on { width: 20px; background: var(--accent); }
+
+/* ============ 弹窗 ============ */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade .2s; }
+.modal-mask.hidden { display: none; }
+.modal { background: var(--card); border-radius: 20px; padding: 26px 22px 20px; width: 100%; max-width: 320px; text-align: center; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.3); animation: pop .35s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal .big { font-size: 54px; line-height: 1; margin-bottom: 12px; }
+.modal h3 { margin: 0 0 8px; font-size: 19px; }
+.modal p { margin: 0 0 6px; font-size: 14px; color: var(--text-2); }
+.modal .btn { margin-top: 16px; width: 100%; padding: 13px; border: none; border-radius: 999px; background: var(--accent); color: var(--bg); font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.modal .btn.ghost { background: var(--card-2); color: var(--text-2); }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i { position: absolute; top: -10px; width: 8px; height: 8px; border-radius: 2px; animation: fall 2.2s linear infinite; }
+@keyframes fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(340px) rotate(540deg); opacity: 0; } }
+
+/* ============ Toast ============ */
+.toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%) translateY(10px); background: var(--text); color: var(--bg); padding: 11px 18px; border-radius: 999px; font-size: 14px; z-index: 60; opacity: 0; transition: all .3s; pointer-events: none; max-width: 82%; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ============ 存入激励特效 ============ */
+.fx-layer { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 3; }
+.fx { position: absolute; left: 50%; bottom: 46%; transform: translateX(-50%); font-size: 22px; pointer-events: none; will-change: transform, opacity; }
+.fx.star { animation: floatUp 1.5s ease-out forwards; }
+.fx.zzz { bottom: 58%; font-size: 17px; font-weight: 800; color: var(--accent-strong); animation: floatUp 2s ease-out forwards; }
+.fx.moon { bottom: 20%; font-size: 38px; animation: moonRise 1.8s ease-out forwards; }
+.praise {
+  position: absolute; top: 24%; left: 0; right: 0; text-align: center;
+  font-size: 22px; font-weight: 800; letter-spacing: .5px; color: var(--accent-strong);
+  text-shadow: 0 2px 12px var(--shadow);
+  animation: praisePop 1.5s ease forwards; pointer-events: none;
+}
+@keyframes floatUp { 0% { transform: translateX(-50%) translateY(0) scale(.5); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateX(-50%) translateY(-140px) scale(1.2); opacity: 0; } }
+@keyframes moonRise { 0% { transform: translateX(-50%) translateY(40px) scale(.6); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateX(-50%) translateY(-80px) scale(1); opacity: 0; } }
+@keyframes praisePop { 0% { transform: scale(.4); opacity: 0; } 25% { transform: scale(1.15); opacity: 1; } 60% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.05); opacity: 0; } }
+
+@media (max-width: 380px) {
+  .jar-stage { width: 264px; height: 288px; }
+  .balance-num { font-size: 38px; }
+}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+
+<div id="app">
+  <!-- ============ 首页 ============ -->
+  <section id="view-home" class="view">
+    <div class="brand">
+      <div class="logo"><div class="mark">🪙</div><h1>Sleep Land</h1></div>
+      <span class="theme-hint" id="theme-hint"></span>
+    </div>
+    <p class="tagline" id="tagline">睡眠银行 · 像管理存款一样管理你的睡眠</p>
+
+    <div class="jar-wrap">
+      <div class="balance-label">当前余额</div>
+      <div class="balance-num" id="balance-num">0<small>枚</small></div>
+      <div class="jar-stage">
+        <div class="overdraft-badge hidden" id="overdraft-badge">透支中</div>
+        <svg id="jar-svg" viewBox="0 0 320 360" xmlns="http://www.w3.org/2000/svg">
+          <!-- 地面阴影 -->
+          <ellipse cx="160" cy="316" rx="95" ry="11" style="fill:var(--shadow); opacity:.5"></ellipse>
+          <g id="jar-group">
+            <!-- 盖钮 -->
+            <circle cx="160" cy="40" r="8" style="fill:var(--accent-strong)"></circle>
+            <rect x="156" y="44" width="8" height="10" style="fill:var(--accent-strong)"></rect>
+            <!-- 罐盖 -->
+            <rect x="126" y="52" width="68" height="24" rx="12" style="fill:var(--accent)"></rect>
+            <rect x="126" y="60" width="68" height="11" rx="5.5" style="fill:rgba(255,255,255,.28)"></rect>
+            <!-- 罐颈 -->
+            <rect x="140" y="76" width="40" height="30" rx="9" style="fill:var(--jar-glass); stroke:var(--jar-outline); stroke-width:2.5"></rect>
+            <!-- 罐身（大肚瓶） -->
+            <path d="M104 106 C100 156 78 180 78 230 C78 276 104 298 120 298 L200 298 C216 298 242 276 242 230 C242 180 220 156 216 106 Z"
+                  style="fill:var(--jar-glass); stroke:var(--jar-outline); stroke-width:3.2"></path>
+            <!-- 罐内硬币 -->
+            <g id="coins-group"></g>
+            <!-- 高光（玻璃反光，盖在硬币上） -->
+            <rect x="102" y="126" width="16" height="138" rx="8" style="fill:rgba(255,255,255,.22)"></rect>
+            <!-- 表情 -->
+            <circle cx="144" cy="146" r="5.5" style="fill:var(--text)"></circle>
+            <circle cx="176" cy="146" r="5.5" style="fill:var(--text)"></circle>
+            <path id="jar-mouth" d="M152 166 Q160 176 168 166" style="fill:none; stroke:var(--text); stroke-width:3.2; stroke-linecap:round"></path>
+            <!-- 腮红 -->
+            <ellipse cx="134" cy="158" rx="7" ry="4" style="fill:rgba(255,120,120,.28)"></ellipse>
+            <ellipse cx="186" cy="158" rx="7" ry="4" style="fill:rgba(255,120,120,.28)"></ellipse>
+          </g>
+          <!-- 掉落中的硬币 -->
+          <g id="falling-coin" class="falling-coin">
+            <ellipse cx="160" cy="22" rx="36" ry="8.5" style="fill:var(--coin); stroke:var(--coin-lo); stroke-width:1.5"></ellipse>
+            <ellipse cx="160" cy="18" rx="27" ry="6" style="fill:var(--coin-hi)"></ellipse>
+          </g>
+        </svg>
+        <div id="fx-layer" class="fx-layer"></div>
+      </div>
+      <div class="status-pill" id="status-pill"><span class="dot"></span><span id="status-pill-text">待存款</span></div>
+      <div class="status-text" id="status-text"></div>
+      <button class="btn-deposit" id="btn-deposit">
+        <span id="btn-deposit-label">存入今晚</span>
+        <span class="sub" id="btn-deposit-sub"></span>
+      </button>
+    </div>
+
+    <div class="banner hidden" id="overdraft-banner">
+      <span>🌙</span><span id="overdraft-banner-text"></span>
+    </div>
+
+    <div class="week-preview">
+      <div class="label">本周打卡</div>
+      <div class="week-dots" id="week-dots"></div>
+    </div>
+  </section>
+
+  <!-- ============ 日历 ============ -->
+  <section id="view-calendar" class="view">
+    <div class="card">
+      <div class="cal-head">
+        <div class="title" id="cal-title"></div>
+        <div class="cal-nav">
+          <button id="cal-prev">‹</button>
+          <button id="cal-next">›</button>
+        </div>
+      </div>
+      <div class="cal-weekdays">
+        <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-legend">
+        <span><i class="ok"></i>存款</span><span><i class="od"></i>透支</span><span><i class="no"></i>未记录</span>
+      </div>
+      <div class="cal-detail" id="cal-detail"></div>
+    </div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section id="view-settings" class="view">
+    <div class="brand">
+      <div class="logo"><div class="mark">🪙</div><h1>Sleep Land</h1></div>
+    </div>
+    <div class="section-title">睡眠银行</div>
+    <div class="card" style="padding:0">
+      <div class="set-row">
+        <div class="left"><div class="t">存款截止时间</div><div class="s">你的目标睡眠时间</div></div>
+        <input type="time" id="set-time" value="23:30">
+      </div>
+      <div style="height:1px;background:var(--line)"></div>
+      <div class="set-row">
+        <div class="left"><div class="t">存款提醒</div><div class="s" id="set-remind-desc">到点提醒你存入</div></div>
+        <label class="switch"><input type="checkbox" id="set-remind"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:20px">关于</div>
+    <div class="card" style="padding:0">
+      <div class="link-row" id="btn-about"><span>关于 Sleep Land</span><span class="arrow">›</span></div>
+      <div style="height:1px;background:var(--line)"></div>
+      <div class="link-row" id="btn-reset"><span>清空本地数据</span><span class="arrow">›</span></div>
+    </div>
+    <p class="section-title" style="margin-top:16px">v1.0 · 免费公益向 · 数据仅保存在本机</p>
+  </section>
+
+  <!-- ============ 底部导航 ============ -->
+  <nav class="tabbar">
+    <button class="tab active" data-view="home">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+      首页
+    </button>
+    <button class="tab" data-view="calendar">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/></svg>
+      日历
+    </button>
+    <button class="tab" data-view="settings">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.4" style="fill:var(--bg)" stroke-width="1.8"/><circle cx="15" cy="12" r="2.4" style="fill:var(--bg)" stroke-width="1.8"/><circle cx="7" cy="17" r="2.4" style="fill:var(--bg)" stroke-width="1.8"/></svg>
+      设置
+    </button>
+  </nav>
+
+  <!-- ============ 新手引导 ============ -->
+  <div id="onboarding" class="onboarding hidden">
+    <div class="ob-top"><button class="ob-skip" id="ob-skip">跳过 ›</button></div>
+    <div class="ob-slides-wrap">
+      <div class="ob-slides" id="ob-slides">
+        <div class="ob-slide">
+          <div class="emoji">🏦🌙</div>
+          <h2>欢迎来到 Sleep Land</h2>
+          <p>把「早睡」变成一件<br>看得见、攒得住的事。</p>
+          <p>像管理存款一样，管理你的睡眠时间。</p>
+        </div>
+        <div class="ob-slide">
+          <div class="emoji">🪙</div>
+          <h2>睡眠银行怎么用？</h2>
+          <div class="rule">
+            <div class="r"><span class="ic">✅</span><span>按时睡觉 = <b>存款 +1</b></span></div>
+            <div class="r"><span class="ic">🌙</span><span>熬夜 = <b>透支 -1</b></span></div>
+            <div class="r"><span class="ic">🎁</span><span>连续 7 / 21 / 30 天<br>解锁「利息」奖励</span></div>
+          </div>
+        </div>
+        <div class="ob-slide">
+          <div class="emoji">⏰</div>
+          <h2>设定你的存款截止时间</h2>
+          <p>也就是你今晚的目标睡觉时间</p>
+          <div class="ob-time-box">
+            <input type="time" id="ob-time" value="23:30">
+          </div>
+          <label class="ob-remind"><label class="switch" style="transform:scale(.85)"><input type="checkbox" id="ob-remind" checked><span class="slider"></span></label>到点前提醒我存款</label>
+        </div>
+      </div>
+    </div>
+    <div class="ob-bottom">
+      <div class="ob-dots" id="ob-dots"></div>
+      <button class="ob-btn" id="ob-btn">下一步</button>
+    </div>
+  </div>
+
+  <!-- ============ 利息奖励弹窗 ============ -->
+  <div class="modal-mask hidden" id="reward-modal">
+    <div class="modal">
+      <div class="confetti" id="reward-confetti"></div>
+      <div class="big">🎉</div>
+      <h3>利息到账！</h3>
+      <p id="reward-text"></p>
+      <button class="btn" id="reward-close">太棒了</button>
+    </div>
+  </div>
+
+  <!-- ============ 关于弹窗 ============ -->
+  <div class="modal-mask hidden" id="about-modal">
+    <div class="modal">
+      <div class="big">🪙</div>
+      <h3>Sleep Land · 睡眠银行</h3>
+      <p>把早睡变成看得见、攒得住的事。</p>
+      <p style="font-size:12px;color:var(--text-3)">免费公益向 · 数据仅保存在本机浏览器</p>
+      <button class="btn" id="about-close">知道了</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= 日期工具（本地时区安全） ================= */
+  const DateUtil = (function () {
+    const pad = n => (n < 10 ? '0' + n : '' + n);
+    const fmt = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const parse = s => { const p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); };
+    const today = () => fmt(new Date());
+    const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return fmt(d); };
+    const timeToMinutes = t => { const p = t.split(':'); return (+p[0]) * 60 + (+p[1]); };
+    const nowMinutes = now => now.getHours() * 60 + now.getMinutes();
+    const minutesUntilDeadline = (t, now) => timeToMinutes(t) - nowMinutes(now || new Date());
+    const monthGrid = (y, m) => { // m 0-based，周一为起始
+      const first = new Date(y, m, 1);
+      const startWeek = (first.getDay() + 6) % 7;
+      const start = new Date(y, m, 1 - startWeek);
+      const cells = [];
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        cells.push({ date: fmt(d), inMonth: d.getMonth() === m, day: d.getDate() });
+      }
+      return cells;
+    };
+    const weekDates = () => {
+      const now = new Date();
+      const dow = (now.getDay() + 6) % 7;
+      const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+      const arr = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+        arr.push({ date: fmt(d), day: d.getDate(), wd: '一二三四五六日'.charAt((d.getDay() + 6) % 7) });
+      }
+      return arr;
+    };
+    const secsToHMS = s => { s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; return pad(h) + ':' + pad(m) + ':' + pad(ss); };
+    return { pad, fmt, parse, today, addDays, timeToMinutes, nowMinutes, minutesUntilDeadline, monthGrid, weekDates, secsToHMS };
+  })();
+
+  /* ================= 本地存储 ================= */
+  const Store = (function () {
+    const SETTINGS_KEY = 'sleepland:settings';
+    const RECORDS_KEY = 'sleepland:records';
+    const DEFAULT_SETTINGS = {
+      onboarded: false,
+      targetSleepTime: '23:30',
+      reminderEnabled: true,
+      reminderOffsetMinutes: 30,
+      firstUseDate: null
+    };
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (raw) { const o = JSON.parse(raw); const out = {}; for (const k in DEFAULT_SETTINGS) out[k] = (k in o) ? o[k] : DEFAULT_SETTINGS[k]; return out; }
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    }
+    function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {} }
+    function loadRecords() { try { const raw = localStorage.getItem(RECORDS_KEY); if (raw) return JSON.parse(raw); } catch (e) {} return {}; }
+    function saveRecords(r) { try { localStorage.setItem(RECORDS_KEY, JSON.stringify(r)); } catch (e) {} }
+    function clearAll() { try { localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem(RECORDS_KEY); } catch (e) {} }
+    return { SETTINGS_KEY, RECORDS_KEY, loadSettings, saveSettings, loadRecords, saveRecords, clearAll };
+  })();
+
+  /* ================= 银行逻辑 ================= */
+  const Bank = (function () {
+    const MILESTONES = [7, 21, 30];
+    // 结算：把 firstUseDate ~ 昨天 之间无记录的日期记为透支
+    function settle(records, settings, now) {
+      now = now || new Date();
+      const t = DateUtil.today();
+      const first = settings.firstUseDate || t;
+      let changed = false, d = first, g = 0;
+      while (d < t && g < 400) {
+        if (!records[d]) { records[d] = 'overdraft'; changed = true; }
+        d = DateUtil.addDays(d, 1); g++;
+      }
+      return changed;
+    }
+    function balance(records) {
+      let b = 0;
+      for (const k in records) { if (records[k] === 'deposit') b++; else if (records[k] === 'overdraft') b--; }
+      return b;
+    }
+    function currentStreak(records, now) {
+      now = now || new Date();
+      let d = DateUtil.today();
+      if (records[d] !== 'deposit') d = DateUtil.addDays(d, -1);
+      let s = 0, g = 0;
+      while (records[d] === 'deposit' && g < 400) { s++; d = DateUtil.addDays(d, -1); g++; }
+      return s;
+    }
+    function todayStatus(records, settings, now) {
+      now = now || new Date();
+      const t = DateUtil.today();
+      if (records[t] === 'deposit') return 'deposit';
+      return DateUtil.minutesUntilDeadline(settings.targetSleepTime, now) >= 0 ? 'pending' : 'overdraft';
+    }
+    function depositToday(records, settings, now) {
+      records[DateUtil.today()] = 'deposit';
+      const newStreak = currentStreak(records, now);
+      const milestone = MILESTONES.indexOf(newStreak) >= 0 ? newStreak : null;
+      return { newStreak, milestone, balance: balance(records) };
+    }
+    function yesterdayOverdraft(records) { return records[DateUtil.addDays(DateUtil.today(), -1)] === 'overdraft'; }
+    return { MILESTONES, settle, balance, currentStreak, todayStatus, depositToday, yesterdayOverdraft };
+  })();
+
+  /* ================= 本地通知 ================= */
+  const Notify = (function () {
+    let timer = null, lastRemind = null;
+    function supported() { return ('Notification' in window) && window.isSecureContext; }
+    function getPermission() { return supported() ? Notification.permission : 'unsupported'; }
+    function requestPermission() {
+      if (!supported()) return Promise.resolve('unsupported');
+      if (Notification.permission === 'granted') return Promise.resolve('granted');
+      if (Notification.permission === 'denied') return Promise.resolve('denied');
+      return Notification.requestPermission();
+    }
+    function fire(title, body) {
+      if (supported() && Notification.permission === 'granted') {
+        try { new Notification(title, { body, tag: 'sleepland-' + DateUtil.today() }); return; } catch (e) {}
+      }
+      App.toast(title + ' · ' + body);
+    }
+    function start(settings) {
+      stop();
+      if (!settings.reminderEnabled) return;
+      const check = () => {
+        const now = new Date();
+        const t = DateUtil.today();
+        const m = DateUtil.minutesUntilDeadline(settings.targetSleepTime, now);
+        if (m >= 0 && m <= settings.reminderOffsetMinutes && lastRemind !== t) {
+          lastRemind = t;
+          fire('Sleep Land · 睡眠银行', '存款窗口即将关闭（' + settings.targetSleepTime + '），记得存入今晚的睡眠');
+        }
+      };
+      timer = setInterval(check, 30000);
+      check();
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+    return { supported, getPermission, requestPermission, start, stop, fire };
+  })();
+
+  /* ================= 应用 ================= */
+  const App = (function () {
+    const state = {
+      settings: null,
+      records: {},
+      now: new Date(),
+      view: 'home',
+      cal: { y: 0, m: 0 },
+      obIndex: 0,
+      lastDate: null,
+      lastStatus: null,
+      selectedDate: null
+    };
+
+    const $ = id => document.getElementById(id);
+
+    /* ---------- 视觉状态（复用） ---------- */
+    function dayVisual(date) {
+      const r = state.records[date];
+      const t = DateUtil.today();
+      if (r === 'deposit') return 'deposit';
+      if (r === 'overdraft') return 'overdraft';
+      if (date > t) return 'future';
+      if (date === t) return Bank.todayStatus(state.records, state.settings, state.now) === 'overdraft' ? 'overdraft' : 'pending';
+      return 'unrecorded';
+    }
+    function visualLabel(v, date) {
+      const map = { deposit: '已存款', overdraft: '已透支', unrecorded: '未记录', future: '未来', pending: '待存款' };
+      return date + ' · ' + (map[v] || v);
+    }
+
+    /* ---------- 首页 ---------- */
+    function renderCoins() {
+      const bal = Bank.balance(state.records);
+      const g = $('coins-group');
+      g.innerHTML = '';
+      const cap = 10, n = Math.max(0, Math.min(bal, cap));
+      const NS = 'http://www.w3.org/2000/svg';
+      for (let i = 0; i < n; i++) {
+        const y = 284 - i * 15;
+        const grp = document.createElementNS(NS, 'g');
+        grp.innerHTML =
+          '<ellipse cx="160" cy="' + y + '" rx="46" ry="8.5" style="fill:var(--coin);stroke:var(--coin-lo);stroke-width:1.5"></ellipse>' +
+          '<ellipse cx="160" cy="' + (y - 4) + '" rx="35" ry="5.5" style="fill:var(--coin-hi)"></ellipse>';
+        g.appendChild(grp);
+      }
+      const jar = $('jar-group');
+      jar.classList.toggle('tilt', bal < 0);
+      const mouth = $('jar-mouth');
+      mouth.setAttribute('d', bal < 0 ? 'M152 176 Q160 166 168 176' : 'M152 166 Q160 176 168 166');
+      $('overdraft-badge').classList.toggle('hidden', bal >= 0);
+      $('overdraft-badge').textContent = '透支 ' + Math.abs(bal) + ' 天';
+      const num = $('balance-num');
+      num.innerHTML = (bal < 0 ? '-' : '') + Math.abs(bal) + '<small>枚</small>';
+      num.classList.toggle('negative', bal < 0);
+    }
+
+    function renderHome() {
+      renderCoins();
+      const status = Bank.todayStatus(state.records, state.settings, state.now);
+      const t = state.settings.targetSleepTime;
+      const pill = $('status-pill'), pillText = $('status-pill-text');
+      pill.classList.toggle('overdraft', status === 'overdraft');
+      pillText.textContent = status === 'deposit' ? '已存款' : (status === 'overdraft' ? '已透支' : '待存款');
+
+      const btn = $('btn-deposit'), label = $('btn-deposit-label'), sub = $('btn-deposit-sub');
+      const streak = Bank.currentStreak(state.records, state.now);
+      if (status === 'deposit') {
+        btn.disabled = true;
+        label.textContent = '今晚已存入 ✓';
+        sub.textContent = '连续存款 ' + streak + ' 天';
+      } else if (status === 'overdraft') {
+        btn.disabled = false;
+        label.textContent = '现在补存';
+        sub.textContent = '过了 ' + t + '，现在还来得及';
+      } else {
+        btn.disabled = false;
+        label.textContent = '存入今晚';
+        sub.textContent = '目标 ' + t + ' 前';
+      }
+      updateCountdown();
+
+      // 本周圆点
+      const week = DateUtil.weekDates();
+      $('week-dots').innerHTML = week.map(w => {
+        const v = dayVisual(w.date);
+        return '<div class="week-dot"><div class="d ' + v + '">' + (v === 'deposit' ? '✓' : (v === 'overdraft' ? '−' : '')) + '</div><span class="w">' + w.wd + '</span></div>';
+      }).join('');
+
+      // 透支提示条
+      const banner = $('overdraft-banner');
+      if (Bank.yesterdayOverdraft(state.records)) {
+        banner.classList.remove('hidden');
+        $('overdraft-banner-text').innerHTML = '昨晚透支了 1 天，余额 -1。<b>今晚记得按时存款哦</b>';
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      $('theme-hint').textContent = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? '🌙 夜间' : '☀️ 白天';
+    }
+
+    function updateCountdown() {
+      const status = Bank.todayStatus(state.records, state.settings, state.now);
+      const t = state.settings.targetSleepTime;
+      const el = $('status-text');
+      if (status === 'pending') {
+        const m = DateUtil.minutesUntilDeadline(t, state.now);
+        el.innerHTML = '<span class="time">' + t + '</span> 存款窗口即将关闭 · 剩余 ' + DateUtil.secsToHMS(m * 60);
+      } else if (status === 'overdraft') {
+        el.innerHTML = '已经过了 <span class="time">' + t + '</span>，现在补存还来得及';
+      } else {
+        el.innerHTML = '今晚已存入，好梦 🌙';
+      }
+      if (state.lastStatus !== status) { state.lastStatus = status; renderHome(); }
+    }
+
+    /* ---------- 激励视觉与随机标语 ---------- */
+    const SLUGANS = [
+      '富兰克林：「早睡早起，使人健康、富有、明智。」',
+      '巴菲特：「人生就像滚雪球，找对湿雪和长坡。」好睡眠就是那条长坡。',
+      '芒格：「每晚睡觉时，都要比早晨醒来时聪明一点。」',
+      '富兰克林：「时间就是金钱。」别让熬夜偷走本金。',
+      '巴菲特：「今天有人坐在树荫下，是因为很久以前有人种下了树。」',
+      '塞内卡：「我们不是时间太少，而是浪费了太多时间。」',
+      '爱迪生：「未来属于今天为它做准备的人。」',
+      '莎士比亚：「睡眠，织补着忧愁散乱的衣袖。」（《麦克白》）',
+      '科学证实：成人每晚睡 7–9 小时，长期健康获益最大（美国睡眠医学会）。',
+      '研究：睡眠不足 6 小时，心血管疾病风险显著升高。',
+      '研究：睡前看手机，蓝光会抑制褪黑素，让入睡更迟。',
+      '科学证实：深度睡眠时，大脑会清除 β-淀粉样蛋白等代谢废物。',
+      '科学证实：固定入睡时间，比周末补觉更有利于健康。',
+      '研究：每天少睡 2 小时，一周后专注力下降 ≈ 血液酒精 0.05%。',
+      '富兰克林：「失去的时间再也找不回来。」',
+      '孔子：「逝者如斯夫，不舍昼夜。」今晚也请准时入眠。'
+    ];
+    const PRAISES = [
+      'You nailed it!', 'Superb!', 'Impressive!', "You're the best!", 'Good night!',
+      '干得漂亮！', '太棒了！', '存得漂亮！', '好梦 🌙', '晚安！'
+    ];
+    let lastSlogan = null, lastPraise = null;
+    function pick(arr, last) { let s; do { s = arr[Math.floor(Math.random() * arr.length)]; } while (arr.length > 1 && s === last); return s; }
+    function rotateSlogan() { lastSlogan = pick(SLUGANS, lastSlogan); const el = $('tagline'); if (el) el.textContent = lastSlogan; }
+    function spawnFX(text, cls, leftPct, delay) {
+      const fx = $('fx-layer'); if (!fx) return;
+      const el = document.createElement('span');
+      el.className = 'fx ' + cls;
+      el.textContent = text;
+      el.style.left = leftPct + '%';
+      el.style.animationDelay = (delay || 0) + 's';
+      fx.appendChild(el);
+      setTimeout(() => el.remove(), 2000 + (delay || 0) * 1000);
+    }
+    function celebrate() {
+      // 冒出小星星
+      for (let i = 0; i < 9; i++) spawnFX(Math.random() < 0.5 ? '✨' : '⭐', 'star', 10 + Math.random() * 80, Math.random() * 0.5);
+      // 月亮升起
+      spawnFX('🌙', 'moon', 50, 0.1);
+      // 瓶子里飘出鼾声
+      spawnFX('z', 'zzz', 44, 0.5);
+      spawnFX('Z', 'zzz', 56, 0.7);
+      // 表扬语
+      const fx = $('fx-layer');
+      const p = document.createElement('div');
+      p.className = 'praise';
+      p.textContent = pick(PRAISES, lastPraise);
+      lastPraise = p.textContent;
+      fx.appendChild(p);
+      setTimeout(() => p.remove(), 1600);
+    }
+
+    function deposit() {
+      const t = DateUtil.today();
+      if (state.records[t] === 'deposit') return;
+      const res = Bank.depositToday(state.records, state.settings, state.now);
+      Store.saveRecords(state.records);
+      // 掉落动画
+      const fc = $('falling-coin');
+      fc.classList.remove('drop');
+      void fc.getBoundingClientRect();
+      fc.classList.add('drop');
+      celebrate();
+      rotateSlogan();
+      renderHome();
+      if (res.milestone) showReward(res.milestone, res.newStreak);
+    }
+
+    function showReward(milestone, streak) {
+      $('reward-text').innerHTML = '连续存款 <b>' + streak + '</b> 天，<br>银行给你发利息奖励 🎁';
+      const box = $('reward-confetti');
+      box.innerHTML = '';
+      const colors = ['var(--accent)', 'var(--coin)', '#FF8A8A', '#7FC7FF'];
+      for (let i = 0; i < 16; i++) {
+        const s = document.createElement('i');
+        s.style.left = (8 + Math.random() * 84) + '%';
+        s.style.background = colors[i % colors.length];
+        s.style.animationDelay = (Math.random() * 1.5) + 's';
+        s.style.animationDuration = (1.8 + Math.random()) + 's';
+        box.appendChild(s);
+      }
+      $('reward-modal').classList.remove('hidden');
+    }
+
+    /* ---------- 日历 ---------- */
+    function renderCalendar() {
+      const y = state.cal.y, m = state.cal.m;
+      $('cal-title').textContent = y + ' 年 ' + (m + 1) + ' 月';
+      const cells = DateUtil.monthGrid(y, m);
+      const t = DateUtil.today();
+      $('cal-grid').innerHTML = cells.map(c => {
+        const v = dayVisual(c.date);
+        const cls = ['inner', c.inMonth ? '' : 'outmonth', v, c.date === t ? 'today' : '', c.date === state.selectedDate ? 'selected' : ''].join(' ').replace(/\s+/g, ' ');
+        return '<div class="cal-cell" data-date="' + c.date + '"><div class="' + cls + '">' + c.day + '</div></div>';
+      }).join('');
+      if (state.selectedDate) {
+        $('cal-detail').textContent = visualLabel(dayVisual(state.selectedDate), state.selectedDate);
+      }
+    }
+
+    /* ---------- 设置 ---------- */
+    function renderSettings() {
+      $('set-time').value = state.settings.targetSleepTime;
+      $('set-remind').checked = state.settings.reminderEnabled;
+      const perm = Notify.getPermission();
+      const off = state.settings.reminderOffsetMinutes;
+      let desc = '';
+      if (!state.settings.reminderEnabled) desc = '已关闭';
+      else if (perm === 'granted') desc = '已开启 · 将在 ' + state.settings.targetSleepTime + ' 前 ' + off + ' 分钟提醒';
+      else if (perm === 'denied') desc = '通知权限被拒绝，请在浏览器设置里允许';
+      else if (perm === 'unsupported') desc = '当前环境不支持通知（需 https 或 localhost）';
+      else desc = '将请求通知权限';
+      $('set-remind-desc').textContent = desc;
+    }
+
+    /* ---------- 导航 ---------- */
+    function switchView(v) {
+      state.view = v;
+      document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+      $('view-' + v).classList.add('active');
+      document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.view === v));
+      if (v === 'calendar') renderCalendar();
+      if (v === 'settings') renderSettings();
+    }
+
+    /* ---------- 引导 ---------- */
+    function showOnboarding() {
+      $('onboarding').classList.remove('hidden');
+      renderObDots();
+      updateObSlide();
+    }
+    function hideOnboarding() { $('onboarding').classList.add('hidden'); }
+    function renderObDots() {
+      $('ob-dots').innerHTML = [0, 1, 2].map(i => '<i class="' + (i === state.obIndex ? 'on' : '') + '"></i>').join('');
+      $('ob-btn').textContent = state.obIndex === 2 ? '开始使用' : '下一步';
+    }
+    function updateObSlide() {
+      $('ob-slides').style.transform = 'translateX(-' + (state.obIndex * 100) + '%)';
+      renderObDots();
+    }
+    function obNext() {
+      if (state.obIndex < 2) { state.obIndex++; updateObSlide(); return; }
+      finishOnboarding();
+    }
+    function finishOnboarding() {
+      const t = $('ob-time').value || '23:30';
+      const remind = $('ob-remind').checked;
+      state.settings.targetSleepTime = t;
+      state.settings.reminderEnabled = remind;
+      state.settings.firstUseDate = DateUtil.today();
+      state.settings.onboarded = true;
+      Store.saveSettings(state.settings);
+      hideOnboarding();
+      if (remind) {
+        Notify.requestPermission().then(() => {
+          Notify.start(state.settings);
+          renderSettings();
+          renderHome();
+        });
+      }
+      render();
+      App.toast('欢迎来到 Sleep Land 🪙');
+    }
+
+    /* ---------- 弹窗 / toast ---------- */
+    function showModal(id) { $(id).classList.remove('hidden'); }
+    function hideModal(id) { $(id).classList.add('hidden'); }
+    let toastTimer = null;
+    function toast(msg) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+    }
+
+    /* ---------- 事件绑定 ---------- */
+    function bindEvents() {
+      document.querySelectorAll('.tab').forEach(el => el.addEventListener('click', () => switchView(el.dataset.view)));
+      $('btn-deposit').addEventListener('click', deposit);
+
+      $('cal-prev').addEventListener('click', () => { state.cal.m--; if (state.cal.m < 0) { state.cal.m = 11; state.cal.y--; } renderCalendar(); });
+      $('cal-next').addEventListener('click', () => { state.cal.m++; if (state.cal.m > 11) { state.cal.m = 0; state.cal.y++; } renderCalendar(); });
+      $('cal-grid').addEventListener('click', e => {
+        const cell = e.target.closest('.cal-cell');
+        if (!cell) return;
+        state.selectedDate = cell.dataset.date;
+        renderCalendar();
+      });
+
+      $('set-time').addEventListener('change', e => {
+        state.settings.targetSleepTime = e.target.value || '23:30';
+        Store.saveSettings(state.settings);
+        Notify.start(state.settings);
+        renderSettings(); renderHome();
+        App.toast('截止时间已更新为 ' + state.settings.targetSleepTime);
+      });
+      $('set-remind').addEventListener('change', e => {
+        const on = e.target.checked;
+        if (on) {
+          Notify.requestPermission().then(p => {
+            state.settings.reminderEnabled = (p === 'granted' || p === 'unsupported');
+            Store.saveSettings(state.settings);
+            Notify.start(state.settings);
+            renderSettings();
+            if (p === 'denied') App.toast('通知权限被拒绝，请在浏览器设置里开启');
+          });
+        } else {
+          state.settings.reminderEnabled = false;
+          Store.saveSettings(state.settings);
+          Notify.stop();
+          renderSettings();
+        }
+      });
+
+      $('btn-about').addEventListener('click', () => showModal('about-modal'));
+      $('about-close').addEventListener('click', () => hideModal('about-modal'));
+      $('reward-close').addEventListener('click', () => hideModal('reward-modal'));
+      $('btn-reset').addEventListener('click', () => {
+        if (confirm('确定清空所有本地数据吗？此操作不可撤销。')) {
+          Store.clearAll();
+          location.reload();
+        }
+      });
+
+      $('ob-skip').addEventListener('click', () => { state.obIndex = 2; updateObSlide(); });
+      $('ob-btn').addEventListener('click', obNext);
+      $('ob-time').addEventListener('change', e => { $('ob-time').value = e.target.value; });
+
+      document.querySelectorAll('.modal-mask').forEach(m => m.addEventListener('click', e => { if (e.target === m) hideModal(m.id); }));
+    }
+
+    /* ---------- 定时 tick + 跨天刷新 ---------- */
+    function tick() {
+      state.now = new Date();
+      const t = DateUtil.today();
+      if (t !== state.lastDate) {
+        state.lastDate = t;
+        const ch = Bank.settle(state.records, state.settings, state.now);
+        if (ch) Store.saveRecords(state.records);
+        render();
+      } else {
+        if (state.view === 'home') updateCountdown();
+      }
+    }
+
+    /* ---------- 渲染入口 ---------- */
+    function render() {
+      renderHome();
+      renderSettings();
+    }
+
+    /* ---------- 星星背景 ---------- */
+    function renderStars() {
+      const box = $('stars');
+      box.innerHTML = '';
+      for (let i = 0; i < 24; i++) {
+        const s = document.createElement('i');
+        s.style.left = (Math.random() * 100) + '%';
+        s.style.top = (Math.random() * 100) + '%';
+        s.style.opacity = (0.3 + Math.random() * 0.7);
+        box.appendChild(s);
+      }
+    }
+
+    function init() {
+      state.settings = Store.loadSettings();
+      state.records = Store.loadRecords();
+      state.now = new Date();
+      state.lastDate = DateUtil.today();
+      state.cal = { y: state.now.getFullYear(), m: state.now.getMonth() };
+      renderStars();
+      bindEvents();
+      if (state.settings.onboarded) {
+        const ch = Bank.settle(state.records, state.settings, state.now);
+        if (ch) Store.saveRecords(state.records);
+        hideOnboarding();
+        switchView('home');
+        Notify.start(state.settings);
+        render();
+      } else {
+        showOnboarding();
+        switchView('home');
+      }
+      rotateSlogan();
+      setInterval(tick, 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          state.now = new Date();
+          const t = DateUtil.today();
+          if (t !== state.lastDate) { state.lastDate = t; }
+          const ch = Bank.settle(state.records, state.settings, state.now);
+          if (ch) Store.saveRecords(state.records);
+          render();
+        }
+      });
+      window.addEventListener('storage', e => {
+        if (e.key === Store.RECORDS_KEY || e.key === Store.SETTINGS_KEY) {
+          state.records = Store.loadRecords();
+          state.settings = Store.loadSettings();
+          render();
+        }
+      });
+    }
+
+    return { init, toast, switchView };
+  })();
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', App.init);
+  else App.init();
+})();
+</script>
+</body>
+</html>
